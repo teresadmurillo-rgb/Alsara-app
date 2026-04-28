@@ -198,32 +198,75 @@
     }
 
     function addProductToAccount(product){
-      var price = Number(product.price);
-      if(Number.isNaN(price)) price = 0;
-      accountItems.push({ name: product.name || "Producto", price: price });
+  var price = Number(product.price);
+  if(Number.isNaN(price)) price = 0;
+
+  var existing = accountItems.find(p => p.barcode === product.barcode);
+
+  if(existing){
+    existing.qty += 1;
+  } else {
+    accountItems.push({ barcode: product.barcode, name: product.name, price: price, qty:1 });
+  }
+
+  renderAccount();
+});
       renderAccount();
     }
 
     function addManualAmount(){
-      var amount = Number(el("manualAmountInput").value.trim().replace(",", "."));
-      if(Number.isNaN(amount) || amount <= 0){ setStatus("Introduce un precio válido en Varios. Ejemplo: 2,50"); return; }
+  var amount = Number(el("manualAmountInput").value.trim().replace(",", "."));
+  if(Number.isNaN(amount) || amount <= 0){ setStatus("Introduce un precio válido."); return; }
+
+  accountItems.push({ name:"Varios", price: amount, qty:1 });
+  el("manualAmountInput").value = "";
+  renderAccount();
+}
       accountItems.push({ name:"Varios", price: amount });
       el("manualAmountInput").value = "";
       renderAccount();
       setStatus("Varios añadido a la cuenta.");
     }
 
-    function clearAccount(){ accountItems = []; renderAccount(); setStatus("Cuenta vaciada."); }
+    
+function inc(i){ accountItems[i].qty++; renderAccount(); }
+function dec(i){
+  accountItems[i].qty--;
+  if(accountItems[i].qty<=0) accountItems.splice(i,1);
+  renderAccount();
+}
+
+function clearAccount(){ accountItems = []; renderAccount(); setStatus("Cuenta vaciada."); }
     function removeAccountItem(index){ accountItems.splice(index, 1); renderAccount(); }
 
     function renderAccount(){
-      var box = el("accountItems"), totalBox = el("accountTotal");
-      if(!box || !totalBox) return;
-      if(accountItems.length === 0){
-        box.innerHTML = "Todavía no hay productos en la cuenta.";
-        totalBox.textContent = "Total: 0,00 €";
-        return;
-      }
+  var box = el("accountItems"), totalBox = el("accountTotal");
+  if(accountItems.length === 0){
+    box.innerHTML = "Todavía no hay productos en la cuenta.";
+    totalBox.textContent = "Total: 0,00 €";
+    return;
+  }
+
+  var total = 0, html = "";
+
+  accountItems.forEach((item,i)=>{
+    var line = item.price * item.qty;
+    total += line;
+
+    html += `
+    <div class='account-line'>
+      <span>${item.name} (x${item.qty})</span>
+      <strong>${line.toFixed(2).replace(".", ",")} €</strong>
+      <span>
+        <button onclick="dec(${i})">-</button>
+        <button onclick="inc(${i})">+</button>
+      </span>
+    </div>`;
+  });
+
+  box.innerHTML = html;
+  totalBox.textContent = "Total: " + total.toFixed(2).replace(".", ",") + " €";
+}
       var total = 0, html = "";
       for(var i=0; i<accountItems.length; i++){
         total += accountItems[i].price;
