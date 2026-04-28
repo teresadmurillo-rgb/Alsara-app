@@ -198,80 +198,87 @@
     }
 
     function addProductToAccount(product){
-  var price = Number(product.price);
-  if(Number.isNaN(price)) price = 0;
+      var price = Number(product.price);
+      if(Number.isNaN(price)) price = 0;
 
-  var existing = accountItems.find(p => p.barcode === product.barcode);
+      var barcode = product.barcode || "";
+      var existing = null;
 
-  if(existing){
-    existing.qty += 1;
-  } else {
-    accountItems.push({ barcode: product.barcode, name: product.name, price: price, qty:1 });
-  }
+      for(var i = 0; i < accountItems.length; i++){
+        if(accountItems[i].barcode && accountItems[i].barcode === barcode){
+          existing = accountItems[i];
+          break;
+        }
+      }
 
-  renderAccount();
-});
+      if(existing){
+        existing.qty += 1;
+      } else {
+        accountItems.push({
+          barcode: barcode,
+          name: product.name || "Producto",
+          price: price,
+          qty: 1
+        });
+      }
+
       renderAccount();
     }
 
     function addManualAmount(){
-  var amount = Number(el("manualAmountInput").value.trim().replace(",", "."));
-  if(Number.isNaN(amount) || amount <= 0){ setStatus("Introduce un precio válido."); return; }
-
-  accountItems.push({ name:"Varios", price: amount, qty:1 });
-  el("manualAmountInput").value = "";
-  renderAccount();
-}
-      accountItems.push({ name:"Varios", price: amount });
+      var amount = Number(el("manualAmountInput").value.trim().replace(",", "."));
+      if(Number.isNaN(amount) || amount <= 0){ setStatus("Introduce un precio válido en Varios. Ejemplo: 2,50"); return; }
+      accountItems.push({ barcode:"", name:"Varios", price: amount, qty: 1 });
       el("manualAmountInput").value = "";
       renderAccount();
       setStatus("Varios añadido a la cuenta.");
     }
 
-    
-function inc(i){ accountItems[i].qty++; renderAccount(); }
-function dec(i){
-  accountItems[i].qty--;
-  if(accountItems[i].qty<=0) accountItems.splice(i,1);
-  renderAccount();
-}
+    function clearAccount(){ accountItems = []; renderAccount(); setStatus("Cuenta vaciada."); }
 
-function clearAccount(){ accountItems = []; renderAccount(); setStatus("Cuenta vaciada."); }
+    function increaseAccountItem(index){
+      if(!accountItems[index]) return;
+      accountItems[index].qty = (accountItems[index].qty || 1) + 1;
+      renderAccount();
+    }
+
+    function decreaseAccountItem(index){
+      if(!accountItems[index]) return;
+      accountItems[index].qty = (accountItems[index].qty || 1) - 1;
+      if(accountItems[index].qty <= 0){
+        accountItems.splice(index, 1);
+      }
+      renderAccount();
+    }
+
     function removeAccountItem(index){ accountItems.splice(index, 1); renderAccount(); }
 
     function renderAccount(){
-  var box = el("accountItems"), totalBox = el("accountTotal");
-  if(accountItems.length === 0){
-    box.innerHTML = "Todavía no hay productos en la cuenta.";
-    totalBox.textContent = "Total: 0,00 €";
-    return;
-  }
+      var box = el("accountItems"), totalBox = el("accountTotal");
+      if(!box || !totalBox) return;
+      if(accountItems.length === 0){
+        box.innerHTML = "Todavía no hay productos en la cuenta.";
+        totalBox.textContent = "Total: 0,00 €";
+        return;
+      }
 
-  var total = 0, html = "";
-
-  accountItems.forEach((item,i)=>{
-    var line = item.price * item.qty;
-    total += line;
-
-    html += `
-    <div class='account-line'>
-      <span>${item.name} (x${item.qty})</span>
-      <strong>${line.toFixed(2).replace(".", ",")} €</strong>
-      <span>
-        <button onclick="dec(${i})">-</button>
-        <button onclick="inc(${i})">+</button>
-      </span>
-    </div>`;
-  });
-
-  box.innerHTML = html;
-  totalBox.textContent = "Total: " + total.toFixed(2).replace(".", ",") + " €";
-}
       var total = 0, html = "";
       for(var i=0; i<accountItems.length; i++){
-        total += accountItems[i].price;
-        html += "<div class='account-line'><span>" + accountItems[i].name + "</span><strong>" + accountItems[i].price.toFixed(2).replace(".", ",") + " €</strong><button type='button' class='secondary' style='padding:6px 10px' onclick='removeAccountItem(" + i + ")'>Quitar</button></div>";
+        var qty = accountItems[i].qty || 1;
+        var lineTotal = accountItems[i].price * qty;
+        total += lineTotal;
+
+        html += "<div class='account-line'>" +
+          "<span>" + accountItems[i].name + "<br><small class='muted'>Unidades: " + qty + " × " + accountItems[i].price.toFixed(2).replace(".", ",") + " €</small></span>" +
+          "<strong>" + lineTotal.toFixed(2).replace(".", ",") + " €</strong>" +
+          "<span style='display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end'>" +
+            "<button type='button' class='secondary' style='padding:6px 10px' onclick='decreaseAccountItem(" + i + ")'>−</button>" +
+            "<button type='button' class='secondary' style='padding:6px 10px' onclick='increaseAccountItem(" + i + ")'>+</button>" +
+            "<button type='button' class='secondary' style='padding:6px 10px' onclick='removeAccountItem(" + i + ")'>Quitar</button>" +
+          "</span>" +
+        "</div>";
       }
+
       box.innerHTML = html;
       totalBox.textContent = "Total: " + total.toFixed(2).replace(".", ",") + " €";
     }
@@ -475,16 +482,18 @@ function clearAccount(){ accountItems = []; renderAccount(); setStatus("Cuenta v
         var item = accountItems[i];
         var price = Number(item.price);
         if (Number.isNaN(price)) price = 0;
-        total += price;
+        var qty = item.qty || 1;
+        var lineTotal = price * qty;
+        total += lineTotal;
 
         var name = String(item.name || "Producto");
-        if (name.length > 24) name = name.substring(0, 24);
+        if (name.length > 18) name = name.substring(0, 18);
 
-        var priceText = price.toFixed(2).replace(".", ",") + " €";
+        var priceText = qty + "x " + lineTotal.toFixed(2).replace(".", ",") + " €";
 
         ctx.font = "15px monospace";
         ctx.fillText(name, 20, y);
-        ctx.fillText(priceText, 310, y);
+        ctx.fillText(priceText, 255, y);
 
         y += lineHeight;
       }
