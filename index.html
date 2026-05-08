@@ -253,26 +253,32 @@
     }
 
     function addProductToAccount(product){
-      var price = Number(product.price);
-      if(Number.isNaN(price)) price = 0;
 
-      var existing = accountItems.find(function(item){
-        return item.barcode && item.barcode === product.barcode;
-      });
+  var price = Number(product.price);
 
-      if(existing){
-        existing.qty += 1;
-      } else {
-        accountItems.push({
-          barcode: product.barcode,
-          name: product.name || "Producto",
-          price: price,
-          qty: 1
-        });
-      }
+  if(Number.isNaN(price)) price = 0;
 
-      renderAccount();
-    }
+  var existing = accountItems.find(function(item){
+    return item.barcode === product.barcode;
+  });
+
+  if(existing){
+
+    existing.qty += 1;
+
+  } else {
+
+    accountItems.push({
+      barcode: product.barcode,
+      name: product.name || "Producto",
+      price: price,
+      qty: 1
+    });
+
+  }
+
+  renderAccount();
+}
 
     function addManualAmount(){
       var amount = Number(el("manualAmountInput").value.trim().replace(",", "."));
@@ -317,47 +323,97 @@
       renderAccount();
     }
 
-    function renderAccount(){
-      var box = el("accountItems");
-      var totalBox = el("accountTotal");
+    function changeQty(index, amount){
+  if(!accountItems[index]) return;
 
-      if(!box || !totalBox) return;
+  accountItems[index].qty += amount;
 
-      if(accountItems.length === 0){
-        box.innerHTML = "Todavía no hay productos en la cuenta.";
-        totalBox.textContent = "Total: 0,00 €";
-        return;
-      }
+  if(accountItems[index].qty <= 0){
+    accountItems.splice(index, 1);
+  }
 
-      var total = 0;
-      var html = "";
+  renderAccount();
+}
 
-      for(var i = 0; i < accountItems.length; i++){
-        var item = accountItems[i];
-        var qty = item.qty || 1;
-        var lineTotal = item.price * qty;
+function renderAccount(){
+  var box = el("accountItems");
+  var totalBox = el("accountTotal");
 
-        total += lineTotal;
+  if(!box || !totalBox) return;
 
-        html += ""
-          + "<div class='account-line'>"
-          + "  <span>"
-          +      item.name
-          + "    <br>"
-          + "    <small class='muted'>" + item.price.toFixed(2).replace(".", ",") + " € x " + qty + "</small>"
-          + "  </span>"
-          + "  <strong>" + lineTotal.toFixed(2).replace(".", ",") + " €</strong>"
-          + "  <div class='qty-controls'>"
-          + "    <button type='button' class='secondary' onclick='changeQty(" + i + ", -1)'>−</button>"
-          + "    <button type='button' class='secondary' onclick='changeQty(" + i + ", 1)'>+</button>"
-          + "    <button type='button' class='secondary' onclick='removeAccountItem(" + i + ")'>Quitar</button>"
-          + "  </div>"
-          + "</div>";
-      }
+  if(accountItems.length === 0){
+    box.innerHTML = "Todavía no hay productos en la cuenta.";
+    totalBox.textContent = "Total: 0,00 €";
+    return;
+  }
 
-      box.innerHTML = html;
-      totalBox.textContent = "Total: " + total.toFixed(2).replace(".", ",") + " €";
-    }
+  var total = 0;
+  var html = "";
+
+  for(var i = 0; i < accountItems.length; i++){
+
+    var item = accountItems[i];
+    var qty = item.qty || 1;
+    var lineTotal = item.price * qty;
+
+    total += lineTotal;
+
+    html += `
+      <div class="account-line">
+
+        <div>
+          <strong>${item.name}</strong><br>
+          <small class="muted">
+            ${item.price.toFixed(2).replace(".", ",")} € × ${qty}
+          </small>
+        </div>
+
+        <strong>
+          ${lineTotal.toFixed(2).replace(".", ",")} €
+        </strong>
+
+        <div style="
+          grid-column:1 / -1;
+          display:flex;
+          gap:8px;
+          margin-top:8px;
+        ">
+          <button
+            type="button"
+            class="secondary"
+            onclick="changeQty(${i}, -1)"
+          >
+            −
+          </button>
+
+          <button
+            type="button"
+            class="secondary"
+            onclick="changeQty(${i}, 1)"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            class="secondary"
+            onclick="removeAccountItem(${i})"
+          >
+            Quitar
+          </button>
+        </div>
+
+      </div>
+    `;
+  }
+
+  box.innerHTML = html;
+
+  totalBox.textContent =
+    "Total: " +
+    total.toFixed(2).replace(".", ",") +
+    " €";
+}
 
     function showCreateForm(barcode, product){
       if(userRole === "guest"){
